@@ -219,6 +219,7 @@ void LibraryModel::SongsDiscovered(const SongList& songs) {
     song_nodes_[song.id()] =
         ItemFromSong(GroupBy_None, true, false, container, song, -1);
   }
+  Reset();
 }
 
 void LibraryModel::SongsSlightlyChanged(const SongList& songs) {
