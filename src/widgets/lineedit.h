@@ -72,8 +72,11 @@ public:
 protected:
   void Paint(QPaintDevice* device);
   void Resize();
-
-private:
+  // Change the value of the "right to left" (direction) property.
+  // Will recompute whatever is needed (UpdateButtonGeometry, ...) if the value
+  // changed.
+  void set_rtl(bool rtl);
+  bool is_rtl() const { return is_rtl_; }
   void UpdateButtonGeometry();
 
 protected:
@@ -86,6 +89,7 @@ protected:
   int extra_right_padding_;
   bool draw_hint_;
   qreal font_point_size_;
+  bool is_rtl_;
 };
 
 class LineEdit : public QLineEdit,
@@ -108,6 +112,9 @@ public:
 protected:
   void paintEvent(QPaintEvent*);
   void resizeEvent(QResizeEvent*);
+
+private slots:
+  void text_changed(const QString& text);
 
 signals:
   void Reset();

@@ -32,7 +32,8 @@ ExtendedEditor::ExtendedEditor(QWidget* widget, int extra_right_padding,
     reset_button_(new QToolButton(widget)),
     extra_right_padding_(extra_right_padding),
     draw_hint_(draw_hint),
-    font_point_size_(widget->font().pointSizeF() - 1)
+    font_point_size_(widget->font().pointSizeF() - 1),
+    is_rtl_(false)
 {
   clear_button_->setIcon(IconLoader::Load("edit-clear-locationbar-ltr"));
   clear_button_->setIconSize(QSize(16, 16));
@@ -80,18 +81,28 @@ void ExtendedEditor::set_reset_button(bool visible) {
 
 void ExtendedEditor::UpdateButtonGeometry() {
   const int frame_width = widget_->style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
-  const int left = frame_width + 1 + (
+  int left = frame_width + 1 + (
         has_clear_button() ? clear_button_->sizeHint().width() : 0);
-  const int right = frame_width + 1 + (
+  int right = frame_width + 1 + (
         has_reset_button() ? reset_button_->sizeHint().width() : 0);
-
+  if (is_rtl()) {
+    qSwap(left, right);
+  }
   widget_->setStyleSheet(
       QString("QLineEdit { padding-left: %1px; padding-right: %2px; }")
         .arg(left).arg(right));
 
   QSize msz = widget_->minimumSizeHint();
-  widget_->setMinimumSize(msz.width() + (clear_button_->sizeHint().width() + frame_width + 1) * 2 + extra_right_padding_,
-                          qMax(msz.height(), clear_button_->sizeHint().height() + frame_width * 2 + 2));
+  int width = msz.width() + (clear_button_->sizeHint().width() + frame_width + 1) * 2 + extra_right_padding_;
+  int height = qMax(msz.height(), clear_button_->sizeHint().height() + frame_width * 2 + 2);
+  widget_->setMinimumSize(width, height);
+}
+
+void ExtendedEditor::set_rtl(bool rtl) {
+  if (rtl != is_rtl_) {
+    is_rtl_ = rtl;
+    UpdateButtonGeometry();
+  }
 }
 
 void ExtendedEditor::Paint(QPaintDevice* device) {
@@ -124,9 +135,10 @@ void ExtendedEditor::Paint(QPaintDevice* device) {
 void ExtendedEditor::Resize() {
   const QSize sz = clear_button_->sizeHint();
   const int frame_width = widget_->style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
-  clear_button_->move(frame_width, (widget_->rect().height() - sz.height()) / 2);
-  reset_button_->move(widget_->width() - frame_width - sz.width() - extra_right_padding_,
-                      (widget_->rect().height() - sz.height()) / 2);
+  const int y = (widget_->rect().height() - sz.height()) / 2;
+
+  clear_button_->move(frame_width, y);
+  reset_button_->move(widget_->width() - frame_width - sz.width() - extra_right_padding_, y);
 }
 
 
@@ -135,6 +147,18 @@ LineEdit::LineEdit(QWidget* parent)
     ExtendedEditor(this)
 {
   connect(reset_button_, SIGNAL(clicked()), SIGNAL(Reset()));
+  connect(this, SIGNAL(textChanged(QString)), SLOT(text_changed(QString)));
+}
+
+void LineEdit::text_changed(const QString& text) {
+  if (text.isEmpty()) {
+    // Consider empty string as LTR
+    set_rtl(false);
+  } else {
+    // For some reason Qt will detect any text with LTR at the end as LTR, so instead
+    // compare only the first character
+    set_rtl(QString(text.at(0)).isRightToLeft());
+  }
 }
 
 void LineEdit::paintEvent(QPaintEvent* e) {
